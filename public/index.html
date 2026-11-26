@@ -15,15 +15,15 @@ button{padding:10px 13px;border:0;border-radius:9px;background:#347ce3;color:#ff
 @media(max-width:650px){.grid,.results{grid-template-columns:1fr}.panel{padding:12px}.key{grid-template-columns:auto minmax(0,1fr) auto}.key .selectKey{grid-column:1}.key button{grid-column:3}.head{align-items:flex-start}}
 </style></head>
 <body><main>
-<header class="head"><div><div class="logo">DHENLEE AI</div><div class="muted">Multi API Browser Agent Runner · v2.0</div></div><span class="tag">Hyperbrowser SDK</span></header>
+<header class="head"><div><div class="logo">DHENLEE AI</div><div class="muted">Multi API Browser Agent Runner · v2.0</div></div><span class="tag">Cloud Browser API</span></header>
 <section class="panel">
 <h2>01 / API Manager</h2>
 <div class="grid">
-<div><label>Nama API</label><input id="apiName" placeholder="Misalnya: HB akun utama"></div>
-<div><label>Hyperbrowser API key</label><input id="apiKey" type="password" autocomplete="off" placeholder="Paste API key di sini"></div>
+<div><label>Nama API</label><input id="apiName" placeholder="Misalnya: Akun utama"></div>
+<div><label>API Key</label><input id="apiKey" type="password" autocomplete="off" placeholder="Masukkan API key di sini"></div>
 </div>
 <div class="row" style="margin-top:12px"><button id="add">+ Tambah API</button><button class="alt" id="clear">Hapus semua</button></div>
-<label>Import TXT — satu Hyperbrowser API key per baris</label><input id="file" type="file" accept=".txt,text/plain">
+<label>Import TXT — satu API Key per baris</label><input id="file" type="file" accept=".txt,text/plain">
 <div id="keys" class="hint" style="margin-top:10px">Belum ada API key.</div>
 <p class="hint">Key disimpan sementara di memori tab browser (bukan localStorage/database) dan dikirim ke Vercel backend hanya saat task dijalankan atau dicek statusnya. Refresh halaman akan menghapus daftar key.</p>
 </section>
@@ -48,7 +48,7 @@ button{padding:10px 13px;border:0;border-radius:9px;background:#347ce3;color:#ff
 <textarea id="prompt" placeholder="Contoh: Buka https://example.com, baca judul halaman, lalu laporkan ringkasan singkat."></textarea>
 <div class="row" style="margin-top:12px"><button id="run">▶ Jalankan API terpilih</button><button class="alt" id="reset">Bersihkan monitor</button></div>
 <div class="progress"><div id="bar" class="bar"></div></div><div id="info" class="hint" style="margin-top:8px">Siap. Tambahkan API key untuk memulai.</div>
-<div class="warning">Paket Hyperbrowser tetap membatasi credits, rate limit, dan concurrency. Mengisi 50 API di UI tidak berarti akun Free bisa menjalankan 50 browser sekaligus. Gunakan hanya akun/situs yang memang boleh kamu akses.</div>
+<div class="warning">Paket Penyedia layanan tetap membatasi credits, rate limit, dan concurrency. Mengisi 50 API di UI tidak berarti akun Free bisa menjalankan 50 browser sekaligus. Gunakan hanya akun/situs yang memang boleh kamu akses.</div>
 </section>
 <section class="panel">
 <div class="between"><h2 style="margin:0">04 / Monitor hasil</h2><span id="summary" class="tag">Belum berjalan</span></div>
@@ -63,7 +63,7 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 function renderKeys(){
   $("keys").innerHTML=apiKeys.length?apiKeys.map((k,i)=>`<div class="key"><input class="selectKey" type="checkbox" data-select="${i}" ${k.selected?"checked":""} aria-label="Pilih API ${i+1}"><span class="keyname">${i+1}. ${esc(k.name)}</span><span class="pill">${k.key.length>8?esc(k.key.slice(0,4)+"••••"+k.key.slice(-3)):"API key"}</span><button class="red" data-remove="${i}">Hapus</button></div>`).join(""):`<div class="hint">Belum ada API key.</div>`;
 }
-$("add").onclick=()=>{const key=$("apiKey").value.trim();if(!key)return alert("Isi Hyperbrowser API key dulu.");if(apiKeys.length>=50)return alert("Maksimal 50 API key.");apiKeys.push({name:$("apiName").value.trim()||`Hyperbrowser ${apiKeys.length+1}`,key,selected:true});$("apiName").value="";$("apiKey").value="";renderKeys();};
+$("add").onclick=()=>{const key=$("apiKey").value.trim();if(!key)return alert("Isi API Key dulu.");if(apiKeys.length>=50)return alert("Maksimal 50 API key.");apiKeys.push({name:$("apiName").value.trim()||`Akun API ${apiKeys.length+1}`,key,selected:true});$("apiName").value="";$("apiKey").value="";renderKeys();};
 $("keys").onclick=e=>{const b=e.target.closest("[data-remove]");if(b){apiKeys.splice(+b.dataset.remove,1);renderKeys();}};
 $("keys").onchange=e=>{const c=e.target.closest("[data-select]");if(c)apiKeys[+c.dataset.select].selected=c.checked;};
 $("clear").onclick=()=>{if(isRunning)return alert("Tunggu task selesai dulu.");apiKeys=[];renderKeys();};
@@ -98,7 +98,7 @@ async function runOne(rec,task,agent,llm,reasoningEffort,maxSteps){
         rec.status="running";rec.progress=check.status||"running";render();
       }catch(err){rec.pollError=err.message;render();await sleep(2500);}
     }
-    rec.status="failed";rec.error="Polling berhenti setelah 10 menit. Task mungkin masih berjalan; cek dashboard Hyperbrowser.";render();
+    rec.status="failed";rec.error="Polling berhenti setelah 10 menit. Task mungkin masih berjalan; cek dashboard penyedia layanan.";render();
   }catch(err){rec.status="failed";rec.error=err.message;render();}
 }
 $("run").onclick=async()=>{
