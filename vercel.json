@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "functions": {
+    "api/start.js": { "maxDuration": 60 },
+    "api/status.js": { "maxDuration": 60 }
+  }
+}
