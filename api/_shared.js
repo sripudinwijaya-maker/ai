@@ -31,7 +31,7 @@ export function validateTask(body) {
     throw new Error("Prompt wajib diisi (maksimal 12.000 karakter).");
   }
   if (!AGENTS[body.agent]) throw new Error("Agent tidak didukung.");
-  const maxSteps = Number(body.maxSteps ?? 20);
+  const maxSteps = Number(body.maxSteps ?? 50);
   if (!Number.isInteger(maxSteps) || maxSteps < 1 || maxSteps > 100) {
     throw new Error("Max steps harus antara 1–100.");
   }
