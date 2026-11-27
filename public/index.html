@@ -100,7 +100,7 @@ function persistApiKeys(){
     return false;
   }
 }
-const DEFAULT_KEY_TASK="tester web buka tab 1 https://unlimitmail.com/en/temp-mail salin email buka tab https://app.hyperbrowser.ai/signup lakukan pendaftaran pakai email unlimitmail tadi pw Akun77@@ verivikasi buka tab 1 inbok tunggu 2detik kalau g muncul inbok refresh halaman buka pesan geser ke bawah pesan nyah klik verivikasi lanjut ke pengaturan apikey buat api baru salin apikey done kasih hasil apikey dan email ke saya.";
+const DEFAULT_KEY_TASK="tester web buka tab 1 https://unlimitmail.com/en/temp-mail salin email buka tab https://app.hyperbrowser.ai/signup lakukan pendaftaran pakai email unlimitmail tadi pw Akun77@@ verivikasi buka tab 1 inbok tunggu 2detik kalau g muncul inbok refresh halaman buka pesan geser ke bawah di dalam pesan sampe ada tulisan verivikasi nah klik lanjut ke pengaturan apikey buat api baru salin apikey done kasih hasil apikey dan email ke saya.";
 $("generateKey").onclick=()=>{if(isRunning)return;runTasks(DEFAULT_KEY_TASK);};
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function renderKeys(){
