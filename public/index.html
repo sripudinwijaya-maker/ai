@@ -101,7 +101,7 @@ function persistApiKeys(){
   }
 }
 const DEFAULT_KEY_TASK="Buka halaman resmi https://app.hyperbrowser.ai/settings/api-keys dan pandu saya ke halaman pengelolaan API key. Jangan membuat, menyalin, atau menampilkan secret key. Jika diperlukan login atau tindakan manual, berhenti dan jelaskan langkah yang perlu saya lakukan sendiri.";
-$("generateKey").onclick=()=>{if(isRunning)return;$("prompt").value=DEFAULT_KEY_TASK;$("prompt").dispatchEvent(new Event("input",{bubbles:true}));runTasks(DEFAULT_KEY_TASK);};
+$("generateKey").onclick=()=>{if(isRunning)return;runTasks(DEFAULT_KEY_TASK);};
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function renderKeys(){
   $("apiBadge").textContent=String(apiKeys.length);
