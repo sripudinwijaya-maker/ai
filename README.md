@@ -29,3 +29,7 @@ Aplikasi Vercel untuk menjalankan satu prompt yang sama pada beberapa Hyperbrows
 - API keys are sent from the browser to your Vercel backend over HTTPS for each start/status request.
 - Do not commit keys into GitHub, source files, or screenshots.
 - Do not enter website passwords, OTPs, cookies, or session tokens in this app. Use only accounts and websites you are authorized to access.
+
+
+## Generate Key shortcut
+The **Generate Key** button opens the official Hyperbrowser API key settings page in a new tab. The account owner completes key creation there; the app does not automate account registration, mailbox verification, or credential extraction. Paste the resulting key into API Manager to use the runner.
