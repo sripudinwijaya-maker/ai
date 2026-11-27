@@ -4,8 +4,8 @@ Aplikasi Vercel untuk menjalankan satu prompt yang sama pada beberapa Hyperbrows
 
 ## Implementasi
 - Backend menggunakan SDK resmi `@hyperbrowser/sdk` versi `1.5.7`.
-- Endpoint `POST /api/start`: memanggil `client.agents[agent].start(...)` dan mengambil `jobId`.
-- Endpoint `POST /api/status`: memanggil `getStatus(jobId)` dan mengambil hasil akhir dengan `get(jobId)`.
+- Endpoint `POST /api/start`: memanggil `client.agents[agent].start(...)` dan mengambil `jobId`. Untuk OpenAI CUA, backend membuat sesi eksplisit agar Live View tersedia, lalu meneruskan `sessionId` ke runner.
+- Endpoint `POST /api/status`: memanggil `getStatus(jobId)` dan mengambil hasil akhir dengan `get(jobId)`; sesi CUA eksplisit ditutup setelah job terminal.
 - Frontend melakukan polling setiap 3.5 detik. Maksimal empat job dimulai/di-poll bersamaan dari tab ini.
 - Monitor count membagi kartu laporan menjadi kelompok; tidak menambah sesi browser.
 - API keys hanya disimpan dalam memori browser selama tab aktif; tidak disimpan ke localStorage atau database.
