@@ -31,6 +31,8 @@ button.alt{background:#0b1a11;border:1px solid #28613c;color:#baffcc;box-shadow:
 .api-count{border-color:#28613c;background:#0b1a11;color:#a8ffbf}.card{background:#040a06;border-color:#174428;box-shadow:inset 0 0 20px #00ff7505}.card pre{color:#c9f9d6}
 #monitorPanel{--led-angle:0deg;position:relative;isolation:isolate;border:2px solid transparent;border-radius:15px;background:linear-gradient(#050a07,#050a07) padding-box,conic-gradient(from var(--led-angle),#36ff76,#00e5ff,#9c55ff,#ff3da7,#ffc247,#36ff76) border-box;box-shadow:0 0 10px #00ff7540,0 0 18px #00d9ff22,0 0 28px #ff38b422;animation:ledRotate 5s linear infinite}
 @keyframes ledRotate{to{--led-angle:360deg}}
+.live-browser{margin-top:14px;padding:10px;border:1px solid #28613c;border-radius:12px;background:#020604;box-shadow:0 0 18px #00ff7520}.live-browser iframe{display:block;width:100%;height:min(65vh,560px);min-height:320px;margin-top:9px;border:1px solid #245837;border-radius:8px;background:#000}
+@media(max-width:650px){.live-browser iframe{height:58vh;min-height:260px}}
 .progress{height:8px;background:#0d1c12;border:1px solid #1a4a2c}.bar{position:relative;background:linear-gradient(90deg,#12c94f,#7dff48,#22ffd0);box-shadow:0 0 12px #27ff78;overflow:hidden}.bar:after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 15%,#ffffffb0 50%,transparent 85%);transform:translateX(-100%);animation:barShine 1.6s linear infinite}@keyframes barShine{to{transform:translateX(100%)}}
 .loading-chip{display:inline-flex;align-items:center;gap:8px;color:#9bffbc;font:11px ui-monospace,monospace;letter-spacing:.5px;text-transform:uppercase}
 .spinner{width:22px;height:22px;border:2px solid #164629;border-top-color:#4dff88;border-right-color:#16e6a2;border-radius:50%;box-shadow:0 0 12px #00ff7560;animation:spin .72s linear infinite;position:relative}
@@ -56,6 +58,7 @@ button.alt{background:#0b1a11;border:1px solid #28613c;color:#baffcc;box-shadow:
 <section class="panel" id="monitorPanel">
 <div class="between"><h2 style="margin:0">Monitor</h2><span id="summary" class="tag">Belum berjalan</span></div>
 <div class="progress"><div id="bar" class="bar"></div></div><div id="info" class="hint" style="margin-top:8px">Siap. Tambahkan API key untuk memulai.</div>
+<div id="liveBrowser" class="live-browser hide"><div class="between"><strong>Browser live · <span id="liveAccount"></span></strong></div><iframe id="liveFrame" title="Live view browser dari Hyperbrowser" referrerpolicy="no-referrer" allow="fullscreen; clipboard-read; clipboard-write"></iframe></div>
 <div id="results" class="results" style="margin-top:12px"><div class="hint">Hasil proses akan muncul di sini.</div></div>
 <div class="row" style="margin-top:10px"><button class="alt" id="copyAll">Salin semua</button><button class="alt" id="download">Unduh TXT</button><button class="alt" id="reset">Bersihkan monitor</button></div>
 </section>
@@ -87,7 +90,7 @@ function loadApiKeys(){
     return saved.filter(x=>x&&typeof x.key==="string"&&x.key.trim()).slice(0,50).map((x,i)=>({name:typeof x.name==="string"&&x.name.trim()?x.name:`Akun API ${i+1}`,key:x.key,selected:true}));
   }catch{return [];}
 }
-let apiKeys=loadApiKeys(), records=[], isRunning=false;
+let apiKeys=loadApiKeys(), records=[], isRunning=false, liveFrameUrl="";
 function persistApiKeys(){
   try{
     if(apiKeys.length)localStorage.setItem(API_STORAGE_KEY,JSON.stringify(apiKeys.map(({name,key})=>({name,key}))));
@@ -117,12 +120,23 @@ $("model").onchange=()=>{$("customModel").classList.toggle("hide",$("model").val
 function getModel(){return $("model").value==="custom"?$("customModel").value.trim():$("model").value;}
 function statusClass(s){return ["success","failed","running","queued"].includes(s)?s:"queued";}
 function cleanText(value){return String(value??"").replace(/\bHyperbrowser\b[:：]?\s*/gi,"").replace(/\n{3,}/g,"\n\n").trim();}
+function updateLiveBrowser(){
+  const active=records.find(r=>r.status==="running"&&r.liveUrl);
+  const box=$("liveBrowser"), frame=$("liveFrame");
+  if(!active){box.classList.add("hide");if(liveFrameUrl){frame.removeAttribute("src");liveFrameUrl="";}return;}
+  let url;
+  try{const parsed=new URL(active.liveUrl);if(parsed.protocol!=="https:"||parsed.hostname!=="app.hyperbrowser.ai")throw new Error("Live View host is not trusted");url=parsed.href;}
+  catch{box.classList.add("hide");if(liveFrameUrl){frame.removeAttribute("src");liveFrameUrl="";}return;}
+  box.classList.remove("hide");$("liveAccount").textContent=active.name;
+  if(liveFrameUrl!==url){frame.src=url;liveFrameUrl=url;}
+}
 function render(){
+  updateLiveBrowser();
   const finished=records.filter(r=>["success","failed"].includes(r.status)).length;
   const ok=records.filter(r=>r.status==="success").length, bad=records.filter(r=>r.status==="failed").length;
   $("summary").textContent=`${ok} sukses · ${bad} gagal · ${records.length-finished} proses`;
   $("bar").style.width=(records.length?finished/records.length*100:0)+"%";
-  $("results").innerHTML=records.map(r=>`<div class="card"><div class="between"><strong>${esc(r.name)}</strong><span class="row"><span class="pill status ${statusClass(r.status)}">${esc(r.status.toUpperCase())}</span>${["queued","running"].includes(r.status)?`<span class="loading-chip"><i class="spinner"></i>${r.status==="queued"?"Menunggu":"Running"}</span>`:""}</span></div><div class="hint">${esc(r.finishedAt||r.startedAt||"")}</div><pre>${esc(cleanText(r.output||r.error||"Tidak ada detail hasil dari server."))}</pre><div class="row"><button class="alt" data-copy="${r.id}">Salin hasil</button>${r.liveUrl?`<a target="_blank" rel="noopener" href="${esc(r.liveUrl)}" class="hint">Live View</a>`:""}</div></div>`).join("")||`<div class="hint">Belum ada hasil.</div>`;
+  $("results").innerHTML=records.map(r=>`<div class="card"><div class="between"><strong>${esc(r.name)}</strong><span class="row"><span class="pill status ${statusClass(r.status)}">${esc(r.status.toUpperCase())}</span>${["queued","running"].includes(r.status)?`<span class="loading-chip"><i class="spinner"></i>${r.status==="queued"?"Menunggu":"Running"}</span>`:""}</span></div><div class="hint">${esc(r.finishedAt||r.startedAt||"")}</div><pre>${esc(cleanText(r.output||r.error||"Tidak ada detail hasil dari server."))}</pre><div class="row"><button class="alt" data-copy="${r.id}">Salin hasil</button></div></div>`).join("")||`<div class="hint">Belum ada hasil.</div>`;
 }
 $("results").onclick=e=>{const b=e.target.closest("[data-copy]");if(!b)return;const r=records.find(x=>x.id===b.dataset.copy);if(r)navigator.clipboard.writeText(`${r.name} — ${r.status.toUpperCase()}\n${cleanText(r.output||r.error||"")}`);};
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
