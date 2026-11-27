@@ -27,33 +27,34 @@ async function post(path,data){const response=await fetch(path,{method:"POST",he
 async function runOne(rec,task,agent,llm,reasoningEffort,maxSteps){
   try{
     const started=await post("/api/start",{apiKey:rec.key,task,agent,llm,reasoningEffort,maxSteps});
-    rec.jobId=started.jobId;rec.liveUrl=started.liveUrl;rec.startedAt=new Date().toLocaleTimeString();rec.status="running";
+    rec.jobId=started.jobId;rec.liveUrl=started.liveUrl;rec.startedAt=new Date().toLocaleTimeString();rec.status="running";rec.output="Job berjalan; menunggu hasil dari server…";render();
     let tries=0;
     while(tries++<180){
       await sleep(3500);
       try{
         const check=await post("/api/status",{apiKey:rec.key,agent,jobId:rec.jobId});
-        if(check.terminal){rec.status=check.status;rec.output=check.output||"";rec.error=check.error||"";rec.steps=check.steps;rec.finishedAt=check.finishedAt;return;}
-        rec.status="running";rec.progress=check.status||"running";
-      }catch(err){rec.pollError=err.message;await sleep(2500);}
+        if(check.terminal){rec.status=check.status;rec.output=check.output||"";rec.error=check.error||"";rec.steps=check.steps;rec.finishedAt=check.finishedAt;render();return;}
+        rec.status="running";rec.progress=check.status||"running";rec.output=`Status server: ${rec.progress}. Job ID: ${rec.jobId}`;render();
+      }catch(err){rec.pollError=err.message;rec.output=`Menunggu status server… (${err.message})`;render();await sleep(2500);}
     }
-    rec.status="failed";rec.error="Polling berhenti setelah 10 menit. Periksa status job pada dashboard penyedia.";
-  }catch(err){rec.status="failed";rec.error=err.message;}
+    rec.status="failed";rec.error="Polling berhenti setelah 10 menit. Periksa status job pada dashboard penyedia.";render();
+  }catch(err){rec.status="failed";rec.error=err.message;render();}
 }
-$("run").onclick=async()=>{
+async function runTasks(task=$("prompt").value.trim()){
   if(isRunning)return;
-  const task=$("prompt").value.trim();if(!task)return alert("Tulis prompt dulu.");
+  if(!task)return alert("Tulis prompt dulu.");
   const selected=apiKeys;const count=selected.length;
   if(!count)return alert("Tambahkan API key dulu.");
   const agent=$("agent").value,llm=getModel(),maxSteps=Number($("steps").value);
   if(!llm)return alert("Pilih/isi model ID.");if(!Number.isInteger(maxSteps)||maxSteps<1||maxSteps>100)return alert("Max steps harus 1–100.");
   const chosen=selected.slice();
   records=chosen.map((k,i)=>({id:`${Date.now()}-${i}`,name:k.name,key:k.key,status:"queued",output:"Menunggu giliran...",startedAt:""}));
-  isRunning=true;$("run").disabled=true;$("info").textContent=`Memproses ${count} API…`;$("summary").textContent="Sedang berjalan";$("bar").style.width="0%";$("results").innerHTML=`<div class="loader"><span class="spinner"></span><div><strong>Memproses permintaan…</strong><div class="hint">Hasil seluruh API akan muncul setelah semua proses selesai.</div></div></div>`;
+  isRunning=true;$("run").disabled=true;$("generateKey").disabled=true;$("info").textContent=`Memproses ${count} API…`;$("summary").textContent="Sedang berjalan";$("bar").style.width="0%";render();
   // Keep a small concurrency window so a large key list does not immediately overwhelm the account.
   let cursor=0;const workers=Array.from({length:Math.min(4,records.length)},async()=>{while(cursor<records.length){const i=cursor++;await runOne(records[i],task,agent,llm,$("reason").value,maxSteps);}});
-  await Promise.all(workers);isRunning=false;$("run").disabled=false;$("info").textContent="Semua proses selesai.";render();
-};
+  await Promise.all(workers);isRunning=false;$("run").disabled=false;$("generateKey").disabled=false;$("info").textContent="Semua proses selesai.";render();
+}
+$("run").onclick=()=>runTasks();
 $("reset").onclick=()=>{if(isRunning)return alert("Task masih berjalan. Tunggu sampai selesai.");records=[];$("summary").textContent="Belum berjalan";$("bar").style.width="0";$("info").textContent="Monitor dibersihkan.";render();};
 function allText(){return records.map(r=>`${r.name} | ${r.status.toUpperCase()}${r.jobId?" | Job: "+r.jobId:""}\n${cleanText(r.output||r.error||"")}`).join("\n\n==============================\n\n");}
 $("copyAll").onclick=()=>{if(!records.length)return alert("Belum ada hasil.");navigator.clipboard.writeText(allText());};

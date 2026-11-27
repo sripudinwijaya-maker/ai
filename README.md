@@ -32,4 +32,8 @@ Aplikasi Vercel untuk menjalankan satu prompt yang sama pada beberapa Hyperbrows
 
 
 ## Generate Key shortcut
-The **Generate Key** button opens the official Hyperbrowser API key settings page in a new tab. The account owner completes key creation there; the app does not automate account registration, mailbox verification, or credential extraction. Paste the resulting key into API Manager to use the runner.
+The **Generate Key** button fills the prompt with a safe default task for opening the official Hyperbrowser API-key settings page, then immediately submits it through the configured runner. Job status and returned output are rendered in the monitor as polling progresses. Because the runner itself is authenticated with a Hyperbrowser API key, at least one valid key must already be added in API Manager. Actual key creation, login, and handling of secret values remain manual actions by the account owner; the default task explicitly tells the agent not to create, copy, or reveal a secret. This shortcut does not itself mint an API key.
+
+
+## Interface
+The compact WEB TOOLS page shows Agent and Model selectors, then the monitor, prompt actions, and API menu. Reasoning effort defaults to `medium` and max steps defaults to `50`; both are hidden from the interface. API keys can be added individually or imported from a TXT file, and the list shows names with masked values. Keys are automatically restored from and saved to browser `localStorage` on add, import, individual delete, and clear-all actions. Browser local storage is not encrypted; avoid shared devices.
