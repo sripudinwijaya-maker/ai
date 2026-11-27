@@ -3,10 +3,13 @@ import { AGENTS, getClient, send } from "./_shared.js";
 export default async function handler(req, res) {
   if (req.method !== "POST") return send(res, 405, { error: "Method not allowed" });
   try {
-    const { apiKey, agent, jobId } = req.body || {};
+    const { apiKey, agent, jobId, sessionId } = req.body || {};
     if (!AGENTS[agent]) return send(res, 400, { error: "Agent tidak didukung." });
     if (typeof jobId !== "string" || !jobId.trim() || jobId.length > 300) {
       return send(res, 400, { error: "Job ID tidak valid." });
+    }
+    if (sessionId != null && (typeof sessionId !== "string" || sessionId.length > 300)) {
+      return send(res, 400, { error: "Session ID tidak valid." });
     }
     const client = getClient(apiKey);
     const service = client.agents[AGENTS[agent]];
@@ -17,6 +20,9 @@ export default async function handler(req, res) {
     const normalized = String(status?.status || "unknown").toLowerCase();
     if (["completed", "failed", "cancelled", "canceled"].includes(normalized)) {
       const result = await service.get(jobId);
+      if (sessionId && client.sessions?.stop) {
+        try { await client.sessions.stop(sessionId); } catch {}
+      }
       return send(res, 200, {
         ok: true,
         terminal: true,
