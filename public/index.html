@@ -15,7 +15,7 @@ button{padding:10px 13px;border:0;border-radius:9px;background:#347ce3;color:#ff
 @media(max-width:650px){.grid,.results{grid-template-columns:1fr}.panel{padding:12px}.key{grid-template-columns:auto minmax(0,1fr) auto}.key .selectKey{grid-column:1}.key button{grid-column:3}.head{align-items:flex-start}}
 </style></head>
 <body><main>
-<header class="head"><div><div class="logo">DHENLEE AI</div><div class="muted">Multi API Browser Agent Runner · v2.0</div></div><span class="tag">Cloud Browser API</span></header>
+<header class="head"><div><div class="logo">DHENLEE AI</div><div class="muted">Multi API Browser Agent Runner · v2.0</div></div><div class="row"><button id="generateKey" type="button">＋ Generate Key</button><span class="tag">Cloud Browser API</span></div></header>
 <section class="panel">
 <h2>01 / API Manager</h2>
 <div class="grid">
@@ -58,6 +58,8 @@ button{padding:10px 13px;border:0;border-radius:9px;background:#347ce3;color:#ff
 <script>
 const $=id=>document.getElementById(id);
 let apiKeys=[], records=[], isRunning=false;
+// Key creation is completed in the provider dashboard by the account owner.
+$("generateKey").onclick=()=>{window.open("https://app.hyperbrowser.ai/settings/api-keys","_blank","noopener,noreferrer");};
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function renderKeys(){
   $("apiBadge").textContent=`(${apiKeys.length})`;
