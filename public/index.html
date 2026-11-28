@@ -62,7 +62,7 @@ button.alt{background:#0b1a11;border:1px solid #28613c;color:#baffcc;box-shadow:
 <div id="activity" class="monitor-live idle"><span class="live-copy">Proses pembuatan belum berjalan.</span></div>
 <div id="liveBrowser" class="live-browser hide"><div class="between"><strong>Browser live · <span id="liveAccount"></span></strong></div><iframe id="liveFrame" title="Live view browser dari Hyperbrowser" referrerpolicy="no-referrer" allow="fullscreen; clipboard-read; clipboard-write"></iframe></div>
 <div id="results" class="results" style="margin-top:12px"><div class="hint">Hasil proses akan muncul di sini.</div></div>
-<div class="between" style="margin-top:10px"><span id="txtStatus" class="txt-status">TXT: belum ada hasil</span><div class="row"><button class="alt" id="copyAll">Salin semua</button><button class="alt" id="downloadSuccess">Unduh TXT sukses</button><button class="alt" id="downloadFailed">Unduh TXT gagal</button><button class="alt" id="reset">Bersihkan monitor</button></div></div>
+<div class="between" style="margin-top:10px"><span id="txtStatus" class="txt-status">TXT: belum ada hasil</span><div class="row"><button class="alt" id="copyAll">Salin semua</button><button class="alt" id="downloadSuccess">Unduh TXT sukses</button><button class="alt" id="downloadFailed">Unduh TXT gagal</button><button class="alt" id="reset">Bersihkan layar</button></div></div>
 </section>
 <section class="panel">
 <label for="prompt" style="margin-top:0">Prompt</label>
@@ -76,7 +76,7 @@ button.alt{background:#0b1a11;border:1px solid #28613c;color:#baffcc;box-shadow:
 <div class="row actions" style="margin-top:10px"><button id="extractApiMenu">Ekstrak API</button><button class="alt" id="extractAccountMenu">Ekstrak Akun &amp; PW</button><button class="alt" id="extractRecoveryMenu">Akun, PW &amp; Recovery</button></div>
 <div class="grid" style="margin-top:8px"><div><label>Yang diambil</label><select id="extractMode"><option value="account">Email + Password</option><option value="accountRecovery">Akun + PW + Email Pemulihan</option><option value="api">API key</option><option value="email">Email saja</option><option value="password">Password saja</option></select></div><div><label>Format hasil</label><select id="extractFormat"><option value="space">Email Password</option><option value="pipe">Email | Password</option><option value="colon">Email:Password</option></select></div></div>
 <label for="extractInput">Teks sumber</label><textarea id="extractInput" placeholder="Atau tempel isi TXT di sini..."></textarea>
-<div class="row" style="margin-top:8px"><button id="extractRun">Bersihkan & Ekstrak</button><button class="alt" id="extractCopy">Salin hasil</button><button class="alt" id="extractDownload">Unduh hasil TXT</button></div>
+<div class="row" style="margin-top:8px"><button id="extractRun">Ekstrak</button><button class="alt" id="extractClear">Bersihkan layar ekstrak</button><button class="alt" id="extractCopy">Salin hasil</button><button class="alt" id="extractDownload">Unduh hasil TXT</button></div>
 <label for="extractOutput">Hasil bersih</label><textarea id="extractOutput" readonly placeholder="Hasil tanpa kata-kata tambahan akan muncul di sini..."></textarea>
 </section>
 <section class="panel" id="apiPanelAnchor">
@@ -85,7 +85,7 @@ button.alt{background:#0b1a11;border:1px solid #28613c;color:#baffcc;box-shadow:
 <div><label>Nama (opsional)</label><input id="apiName" placeholder="Misalnya: Akun utama"></div>
 <div><label>API Key</label><input id="apiKey" type="password" autocomplete="off" placeholder="Tempel API key"></div>
 </div>
-<div class="row" style="margin-top:10px"><button id="add">+ Tambah API</button><button class="alt" id="clear">Hapus semua</button></div>
+<div class="row" style="margin-top:10px"><button id="add">+ Tambah API</button><button class="alt" id="clear">Hapus semua API key</button></div>
 <label>Atau upload TXT — satu API key per baris</label><input id="file" type="file" accept=".txt,text/plain">
 <div class="between" style="margin-top:10px"><span id="apiStorageStatus" class="hint">API key disimpan di browser ini</span><span id="apiBadge" class="api-count">0</span></div>
 <p class="hint" style="margin:7px 0 0">Penyimpanan browser tidak dienkripsi. Hindari perangkat bersama; hapus key jika perangkat dipakai orang lain.</p>
@@ -204,7 +204,7 @@ async function runTasks(task=$("prompt").value.trim()){
   isRunning=false;$("run").disabled=false;$("generateKey").disabled=false;$("info").textContent="Semua proses selesai.";render();
 }
 $("run").onclick=()=>runTasks();
-$("reset").onclick=()=>{if(isRunning)return alert("Task masih berjalan. Tunggu sampai selesai.");records=[];$("summary").textContent="Belum berjalan";$("bar").style.width="0";$("info").textContent="Monitor dibersihkan.";render();};
+$("reset").onclick=()=>{if(isRunning)return alert("Task masih berjalan. Tunggu sampai selesai.");records=[];activityIndex=0;$("summary").textContent="Belum berjalan";$("bar").style.width="0";$("info").textContent="Siap. Tambahkan API key untuk memulai.";$("txtStatus").textContent="TXT: belum ada hasil";$("extractInput").value="";$("extractOutput").value="";render();};
 function allText(){return records.map(r=>`${r.name} | ${r.status.toUpperCase()}${r.jobId?" | Job: "+r.jobId:""}\n${cleanText(r.output||r.error||"")}`).join("\n\n==============================\n\n");}
 function statusText(status){return records.filter(r=>r.status===status).map(r=>`${r.name} | ${status.toUpperCase()}${r.jobId?" | Job: "+r.jobId:""}\n${cleanText(r.output||r.error||"")}`).join("\n\n==============================\n\n");}
 function downloadText(status){const text=statusText(status);if(!text)return alert(`Belum ada hasil ${status===`success`?`sukses`:`gagal`}.`);const blob=new Blob([text],{type:"text/plain;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`dhenlee-ai-${status}.txt`;a.click();URL.revokeObjectURL(url);}
@@ -250,6 +250,7 @@ function extractClean(){
 }
 $("extractFile").onchange=async e=>{const file=e.target.files?.[0];if(!file)return;$("extractInput").value=await file.text();extractClean();e.target.value="";};
 $("extractRun").onclick=extractClean;
+$("extractClear").onclick=()=>{$("extractInput").value="";$("extractOutput").value="";$("extractFile").value="";$("txtStatus").textContent="Ekstrak: layar dibersihkan";};
 $("extractApiMenu").onclick=()=>{$("extractMode").value="api";extractClean();};
 $("extractAccountMenu").onclick=()=>{$("extractMode").value="account";extractClean();};
 $("extractRecoveryMenu").onclick=()=>{$("extractMode").value="accountRecovery";extractClean();};
