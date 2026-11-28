@@ -38,7 +38,7 @@ button.alt{background:#0b1a11;border:1px solid #28613c;color:#baffcc;box-shadow:
 .spinner{width:22px;height:22px;border:2px solid #164629;border-top-color:#4dff88;border-right-color:#16e6a2;border-radius:50%;box-shadow:0 0 12px #00ff7560;animation:spin .72s linear infinite;position:relative}
 .spinner:after{content:"";position:absolute;inset:4px;border:1px solid #1c7840;border-bottom-color:#b4ff49;border-radius:50%;animation:spin .95s linear infinite reverse}
 .card:has(.loading-chip){border-color:#28613d;animation:cardPulse 2s ease-in-out infinite}@keyframes cardPulse{50%{box-shadow:inset 0 0 18px #00ff750c,0 0 12px #00ff751a}}
-.monitor-live{display:flex;align-items:center;justify-content:center;gap:13px;min-height:76px;margin-top:12px;padding:14px;border:1px solid #28613d;border-radius:11px;background:#040b06;color:#baffcc;font:800 18px ui-monospace,monospace;letter-spacing:1.5px;box-shadow:inset 0 0 18px #00ff7508,0 0 16px #00ff7512}.monitor-live strong{color:#6dff9f}.monitor-live .spinner{width:24px;height:24px}.monitor-live.idle{color:#88aa94;font-size:13px;letter-spacing:0}.monitor-live.done{border-color:#28613d;color:#9bffbc}.live-copy{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.loading-word{color:#72ffad;text-shadow:0 0 12px #00ff7560}.loading-dots{display:inline-block;width:28px;text-align:left}.results{display:none!important}.txt-status{color:#88aa94;font:11px ui-monospace,monospace}
+.monitor-live{display:flex;align-items:center;justify-content:center;gap:13px;min-height:76px;margin-top:12px;padding:14px;border:1px solid #28613d;border-radius:11px;background:#040b06;color:#baffcc;font:800 18px ui-monospace,monospace;letter-spacing:1.5px;box-shadow:inset 0 0 18px #00ff7508,0 0 16px #00ff7512}.monitor-live strong{color:#6dff9f}.monitor-live .spinner{width:24px;height:24px}.monitor-live.idle{color:#88aa94;font-size:13px;letter-spacing:0}.monitor-live.done{border-color:#28613d;color:#9bffbc}.monitor-live.failed{border-color:#ff596d;color:#ff9ca7;box-shadow:inset 0 0 18px #ff596d12,0 0 16px #ff596d22}.live-copy{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.loading-word{color:#72ffad;text-shadow:0 0 12px #00ff7560}.monitor-live.failed .loading-word{color:#ff7180;text-shadow:0 0 12px #ff596d70}.loading-dots{display:inline-block;width:28px;text-align:left}.bike-scene{display:inline-flex;align-items:center;justify-content:center;width:76px;height:42px;overflow:visible;border-bottom:2px solid #2a8d51;position:relative}.bike-rider{display:inline-block;white-space:nowrap;font-size:25px;line-height:1;transform-origin:50% 85%;animation:bikeRide 1.7s ease-in-out infinite}.bike-rider.fall{animation:bikeFall .9s ease-in forwards}.bike-rider.success{animation:bikeRide 1.3s ease-in-out infinite}.bike-rider.failed{animation:bikeFall .9s ease-in forwards}@keyframes bikeRide{0%,100%{transform:translateX(-18px) rotate(-2deg)}50%{transform:translateX(16px) rotate(2deg)}}@keyframes bikeFall{0%{transform:translateX(0) rotate(0)}45%{transform:translateX(10px) rotate(18deg)}100%{transform:translate(13px,15px) rotate(78deg);filter:grayscale(1)}}.results{display:none!important}.txt-status{color:#88aa94;font:11px ui-monospace,monospace}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
 
 </style></head>
@@ -102,7 +102,7 @@ function loadApiKeys(){
     return saved.filter(x=>x&&typeof x.key==="string"&&x.key.trim()).slice(0,50).map((x,i)=>({name:typeof x.name==="string"&&x.name.trim()?x.name:`Akun API ${i+1}`,key:x.key,selected:true}));
   }catch{return [];}
 }
-let apiKeys=loadApiKeys(), records=[], isRunning=false, liveFrameUrl="", activityIndex=0;
+let apiKeys=loadApiKeys(), records=[], isRunning=false, liveFrameUrl="", activityIndex=0, lastOutcome="", lastOutcomeAt=0;
 function persistApiKeys(){
   try{
     if(apiKeys.length)localStorage.setItem(API_STORAGE_KEY,JSON.stringify(apiKeys.map(({name,key})=>({name,key}))));
@@ -154,10 +154,12 @@ function renderActivity(){
   if(active.length){
     activityIndex=(activityIndex+1)%active.length;
     box.className="monitor-live";
-    box.innerHTML='<i class="spinner"></i><span class="loading-word">LOADING<span class="loading-dots">...</span></span>';
+    const falling=lastOutcome==="failed"&&Date.now()-lastOutcomeAt<1800;
+    box.innerHTML=`<span class="bike-scene"><span class="bike-rider ${falling?"fall":"success"}">🧒🚲</span></span><span class="loading-word">${falling?"GAGAL":"LOADING"}<span class="loading-dots">${falling?"":"..."}</span></span>`;
   }else{
-    box.className="monitor-live done";
-    box.innerHTML=`<span class="live-copy"><strong>Semua proses selesai</strong> · ${finished} API selesai.</span>`;
+    const failed=records.filter(r=>r.status==="failed").length>0;
+    box.className=`monitor-live done${failed?" failed":""}`;
+    box.innerHTML=`<span class="bike-scene"><span class="bike-rider ${failed?"failed":"success"}">🧒🚲</span></span><span class="loading-word">${failed?"GAGAL":"SUKSES"}</span>`;
   }
 }
 function render(){
@@ -182,12 +184,12 @@ async function runOne(rec,task,agent,llm,reasoningEffort,maxSteps){
       await sleep(3500);
       try{
         const check=await post("/api/status",{apiKey:rec.key,agent,jobId:rec.jobId,sessionId:rec.sessionId});
-        if(check.terminal){rec.output=check.output||"";rec.error=check.error||"";rec.status=check.status==="success"&&!resultHasFailureText(rec.output,rec.error)?"success":"failed";rec.steps=check.steps;rec.finishedAt=check.finishedAt;render();return;}
+        if(check.terminal){rec.output=check.output||"";rec.error=check.error||"";rec.status=check.status==="success"&&!resultHasFailureText(rec.output,rec.error)?"success":"failed";lastOutcome=rec.status;lastOutcomeAt=Date.now();rec.steps=check.steps;rec.finishedAt=check.finishedAt;render();return;}
         rec.status="running";rec.progress=check.status||"running";rec.output=`Status server: ${rec.progress}. Job ID: ${rec.jobId}`;render();
       }catch(err){rec.pollError=err.message;rec.output=`Menunggu status server… (${err.message})`;render();await sleep(2500);}
     }
-    rec.status="failed";rec.error="Polling berhenti setelah 10 menit. Periksa status job pada dashboard penyedia.";render();
-  }catch(err){rec.status="failed";rec.error=err.message;render();}
+    rec.status="failed";lastOutcome="failed";lastOutcomeAt=Date.now();rec.error="Polling berhenti setelah 10 menit. Periksa status job pada dashboard penyedia.";render();
+  }catch(err){rec.status="failed";lastOutcome="failed";lastOutcomeAt=Date.now();rec.error=err.message;render();}
 }
 async function runTasks(task=$("prompt").value.trim()){
   if(isRunning)return;
@@ -197,14 +199,14 @@ async function runTasks(task=$("prompt").value.trim()){
   const agent=$("agent").value,llm=getModel(),maxSteps=Number($("steps").value);
   if(!llm)return alert("Pilih/isi model ID.");if(!Number.isInteger(maxSteps)||maxSteps<1||maxSteps>100)return alert("Max steps harus 1–100.");
   const chosen=selected.slice();
-  records=chosen.map((k,i)=>({id:`${Date.now()}-${i}`,name:k.name,key:k.key,status:"queued",output:"Menunggu giliran...",startedAt:""}));
+  records=chosen.map((k,i)=>({id:`${Date.now()}-${i}`,name:k.name,key:k.key,status:"queued",output:"Menunggu giliran...",startedAt:""}));lastOutcome="";lastOutcomeAt=0;
   isRunning=true;$("run").disabled=true;$("generateKey").disabled=true;$("info").textContent=`Mengirim ke ${count} API…`;$("summary").textContent="Sedang berjalan";$("bar").style.width="0%";render();
   // Start every selected API immediately; each job is monitored independently.
   await Promise.all(records.map(rec=>runOne(rec,task,agent,llm,$("reason").value,maxSteps)));
   isRunning=false;$("run").disabled=false;$("generateKey").disabled=false;$("info").textContent="Semua proses selesai.";render();
 }
 $("run").onclick=()=>runTasks();
-$("reset").onclick=()=>{if(isRunning)return alert("Task masih berjalan. Tunggu sampai selesai.");records=[];activityIndex=0;$("summary").textContent="Belum berjalan";$("bar").style.width="0";$("info").textContent="Siap. Tambahkan API key untuk memulai.";$("txtStatus").textContent="TXT: belum ada hasil";$("extractInput").value="";$("extractOutput").value="";render();};
+$("reset").onclick=()=>{if(isRunning)return alert("Task masih berjalan. Tunggu sampai selesai.");records=[];activityIndex=0;lastOutcome="";lastOutcomeAt=0;$("summary").textContent="Belum berjalan";$("bar").style.width="0";$("info").textContent="Siap. Tambahkan API key untuk memulai.";$("txtStatus").textContent="TXT: belum ada hasil";$("extractInput").value="";$("extractOutput").value="";render();};
 function allText(){return records.map(r=>`${r.name} | ${r.status.toUpperCase()}${r.jobId?" | Job: "+r.jobId:""}\n${cleanText(r.output||r.error||"")}`).join("\n\n==============================\n\n");}
 function statusText(status){return records.filter(r=>r.status===status).map(r=>`${r.name} | ${status.toUpperCase()}${r.jobId?" | Job: "+r.jobId:""}\n${cleanText(r.output||r.error||"")}`).join("\n\n==============================\n\n");}
 function downloadText(status){const text=statusText(status);if(!text)return alert(`Belum ada hasil ${status===`success`?`sukses`:`gagal`}.`);const blob=new Blob([text],{type:"text/plain;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`dhenlee-ai-${status}.txt`;a.click();URL.revokeObjectURL(url);}
