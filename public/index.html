@@ -38,7 +38,7 @@ button.alt{background:#0b1a11;border:1px solid #28613c;color:#baffcc;box-shadow:
 .spinner{width:22px;height:22px;border:2px solid #164629;border-top-color:#4dff88;border-right-color:#16e6a2;border-radius:50%;box-shadow:0 0 12px #00ff7560;animation:spin .72s linear infinite;position:relative}
 .spinner:after{content:"";position:absolute;inset:4px;border:1px solid #1c7840;border-bottom-color:#b4ff49;border-radius:50%;animation:spin .95s linear infinite reverse}
 .card:has(.loading-chip){border-color:#28613d;animation:cardPulse 2s ease-in-out infinite}@keyframes cardPulse{50%{box-shadow:inset 0 0 18px #00ff750c,0 0 12px #00ff751a}}
-.monitor-live{display:flex;align-items:center;gap:10px;min-height:56px;margin-top:12px;padding:12px;border:1px solid #28613d;border-radius:11px;background:#040b06;color:#baffcc;font:13px ui-monospace,monospace;box-shadow:inset 0 0 18px #00ff7508}.monitor-live strong{color:#6dff9f}.monitor-live .spinner{width:18px;height:18px}.monitor-live.idle{color:#88aa94}.monitor-live.done{border-color:#28613d;color:#9bffbc}.live-copy{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.results{max-height:270px;overflow-y:auto;padding-right:3px;scrollbar-color:#28613d #061008}.results .card{min-height:0}.results .card pre{max-height:105px;margin:8px 0 0}.txt-status{color:#88aa94;font:11px ui-monospace,monospace}
+.monitor-live{display:flex;align-items:center;justify-content:center;gap:13px;min-height:76px;margin-top:12px;padding:14px;border:1px solid #28613d;border-radius:11px;background:#040b06;color:#baffcc;font:800 18px ui-monospace,monospace;letter-spacing:1.5px;box-shadow:inset 0 0 18px #00ff7508,0 0 16px #00ff7512}.monitor-live strong{color:#6dff9f}.monitor-live .spinner{width:24px;height:24px}.monitor-live.idle{color:#88aa94;font-size:13px;letter-spacing:0}.monitor-live.done{border-color:#28613d;color:#9bffbc}.live-copy{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.loading-word{color:#72ffad;text-shadow:0 0 12px #00ff7560}.loading-dots{display:inline-block;width:28px;text-align:left}.results{display:none!important}.txt-status{color:#88aa94;font:11px ui-monospace,monospace}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
 
 </style></head>
@@ -68,6 +68,16 @@ button.alt{background:#0b1a11;border:1px solid #28613c;color:#baffcc;box-shadow:
 <label for="prompt" style="margin-top:0">Prompt</label>
 <textarea id="prompt" placeholder="Tulis perintah untuk agent..."></textarea>
 <div class="row actions" style="margin-top:10px"><button id="run">Kirim</button><button class="alt" id="generateKey" type="button">Generate Key</button></div>
+</section>
+<section class="panel" id="extractPanel">
+<div class="between"><h2 style="margin:0">Ekstrak Data</h2><span class="tag">TXT cleaner</span></div>
+<div class="hint" style="margin:6px 0 10px">Upload hasil unduhan, pilih data yang mau diambil, lalu hasil bersih tanpa label akan dibuat otomatis.</div>
+<label for="extractFile">Upload TXT hasil</label><input id="extractFile" type="file" accept=".txt,text/plain">
+<div class="row actions" style="margin-top:10px"><button id="extractApiMenu">Ekstrak API</button><button class="alt" id="extractAccountMenu">Ekstrak Akun &amp; PW</button><button class="alt" id="extractRecoveryMenu">Akun, PW &amp; Recovery</button></div>
+<div class="grid" style="margin-top:8px"><div><label>Yang diambil</label><select id="extractMode"><option value="account">Email + Password</option><option value="accountRecovery">Akun + PW + Email Pemulihan</option><option value="api">API key</option><option value="email">Email saja</option><option value="password">Password saja</option></select></div><div><label>Format hasil</label><select id="extractFormat"><option value="space">Email Password</option><option value="pipe">Email | Password</option><option value="colon">Email:Password</option></select></div></div>
+<label for="extractInput">Teks sumber</label><textarea id="extractInput" placeholder="Atau tempel isi TXT di sini..."></textarea>
+<div class="row" style="margin-top:8px"><button id="extractRun">Bersihkan & Ekstrak</button><button class="alt" id="extractCopy">Salin hasil</button><button class="alt" id="extractDownload">Unduh hasil TXT</button></div>
+<label for="extractOutput">Hasil bersih</label><textarea id="extractOutput" readonly placeholder="Hasil tanpa kata-kata tambahan akan muncul di sini..."></textarea>
 </section>
 <section class="panel" id="apiPanelAnchor">
 <h2>Menu API</h2>
@@ -122,6 +132,10 @@ $("model").onchange=()=>{$("customModel").classList.toggle("hide",$("model").val
 function getModel(){return $("model").value==="custom"?$("customModel").value.trim():$("model").value;}
 function statusClass(s){return ["success","failed","running","queued"].includes(s)?s:"queued";}
 function cleanText(value){return String(value??"").replace(/\bHyperbrowser\b[:：]?\s*/gi,"").replace(/\n{3,}/g,"\n\n").trim();}
+function resultHasFailureText(output,error=""){
+  const text=`${output||""} ${error||""}`.toLowerCase();
+  return /\b(gagal|failed|failure|error|belum\s+(?:berhasil|selesai|tersedia|dibuat|dikirim|terverifikasi|muncul)|tidak\s+(?:berhasil|tersedia|dibuat|dikirim|menampilkan|muncul)|belum\s+ada|berhenti|tidak\s+dapat)\b/i.test(text);
+}
 function updateLiveBrowser(){
   const active=records.find(r=>r.status==="running"&&r.liveUrl);
   const box=$("liveBrowser"), frame=$("liveFrame");
@@ -138,10 +152,9 @@ function renderActivity(){
   const active=records.filter(r=>r.status==="running"||r.status==="queued");
   const finished=records.filter(r=>r.status==="success"||r.status==="failed").length;
   if(active.length){
-    activityIndex%=active.length;
-    const rec=active[activityIndex++], number=records.indexOf(rec)+1;
+    activityIndex=(activityIndex+1)%active.length;
     box.className="monitor-live";
-    box.innerHTML=`<i class="spinner"></i><span class="live-copy"><strong>Proses pembuatan berjalan</strong> · API (${number}) · ${rec.status==="queued"?"mengirim…":"memproses…"}</span>`;
+    box.innerHTML='<i class="spinner"></i><span class="loading-word">LOADING<span class="loading-dots">...</span></span>';
   }else{
     box.className="monitor-live done";
     box.innerHTML=`<span class="live-copy"><strong>Semua proses selesai</strong> · ${finished} API selesai.</span>`;
@@ -169,7 +182,7 @@ async function runOne(rec,task,agent,llm,reasoningEffort,maxSteps){
       await sleep(3500);
       try{
         const check=await post("/api/status",{apiKey:rec.key,agent,jobId:rec.jobId,sessionId:rec.sessionId});
-        if(check.terminal){rec.status=check.status;rec.output=check.output||"";rec.error=check.error||"";rec.steps=check.steps;rec.finishedAt=check.finishedAt;render();return;}
+        if(check.terminal){rec.output=check.output||"";rec.error=check.error||"";rec.status=check.status==="success"&&!resultHasFailureText(rec.output,rec.error)?"success":"failed";rec.steps=check.steps;rec.finishedAt=check.finishedAt;render();return;}
         rec.status="running";rec.progress=check.status||"running";rec.output=`Status server: ${rec.progress}. Job ID: ${rec.jobId}`;render();
       }catch(err){rec.pollError=err.message;rec.output=`Menunggu status server… (${err.message})`;render();await sleep(2500);}
     }
@@ -198,6 +211,50 @@ function downloadText(status){const text=statusText(status);if(!text)return aler
 $("copyAll").onclick=()=>{if(!records.length)return alert("Belum ada hasil.");navigator.clipboard.writeText(allText());};
 $("downloadSuccess").onclick=()=>downloadText("success");
 $("downloadFailed").onclick=()=>downloadText("failed");
+const extractEmail=/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig;
+function uniq(values){return [...new Set(values.map(v=>String(v).trim()).filter(Boolean))];}
+function extractClean(){
+  const source=$("extractInput").value||"", mode=$("extractMode").value, format=$("extractFormat").value;
+  if(!source.trim())return alert("Upload atau tempel TXT dulu.");
+  const emails=uniq(source.match(extractEmail)||[]), passwords=[], pairs=[];
+  for(const line of source.split(/\r?\n/)){
+    const email=line.match(extractEmail)?.[0]||"";
+    const pass=line.match(/(?:password|passwd|pass|pw)\s*[:=|\-]\s*([^\s|,;]+)|(?:password|passwd|pass|pw)\s+([^\s|,;]+)/i);
+    const password=(pass?.[1]||pass?.[2]||"").replace(/["'`]+$/g,"");
+    if(password)passwords.push(password);
+    if(email&&password)pairs.push({email,password});
+  }
+  if(!pairs.length&&emails.length&&passwords.length&&emails.length===passwords.length)emails.forEach((email,i)=>pairs.push({email,password:passwords[i]}));
+  let output="";
+  if(mode==="api"){
+    const labeled=[...source.matchAll(/(?:api(?:\s*key)?|apikey)\s*[:=|]\s*([A-Za-z0-9_.\/-]{12,})/ig)].map(m=>m[1]);
+    const prefixed=[...source.matchAll(/\b(?:hb|sk|pk)_[A-Za-z0-9_-]{12,}\b/g)].map(m=>m[0]);
+    output=uniq([...labeled,...prefixed]).join("\n");
+  }else if(mode==="email")output=emails.join("\n");
+  else if(mode==="password")output=uniq(passwords).join("\n");
+  else if(mode==="accountRecovery"){
+    const sep=format==="pipe"?" | ":format==="colon"?":":" ", triples=[];
+    for(const line of source.split(/\r?\n/)){
+      const lineEmails=uniq(line.match(extractEmail)||[]);
+      const recoveryMatch=line.match(/(?:recovery|pemulihan|backup)\s*(?:email)?\s*[:=|\-]\s*([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i);
+      const recovery=recoveryMatch?.[1]||lineEmails[1]||"", main=lineEmails.find(e=>e.toLowerCase()!==recovery.toLowerCase())||lineEmails[0]||"";
+      const pass=line.match(/(?:password|passwd|pass|pw)\s*[:=|\-]\s*([^\s|,;]+)|(?:password|passwd|pass|pw)\s+([^\s|,;]+)/i);
+      const password=(pass?.[1]||pass?.[2]||"").replace(/["'`]+$/g,"");
+      if(main&&password&&recovery)triples.push(main+sep+password+sep+recovery);
+    }
+    if(!triples.length&&emails.length>=2&&passwords.length)triples.push(emails[0]+sep+passwords[0]+sep+emails[1]);
+    output=uniq(triples).join("\n");
+  }else{const sep=format==="pipe"?" | ":format==="colon"?":":" ";output=uniq(pairs.map(p=>p.email+sep+p.password)).join("\n");}
+  $("extractOutput").value=output;
+  $("txtStatus").textContent=`Ekstrak: ${output?output.split("\n").length:0} baris bersih`;
+}
+$("extractFile").onchange=async e=>{const file=e.target.files?.[0];if(!file)return;$("extractInput").value=await file.text();extractClean();e.target.value="";};
+$("extractRun").onclick=extractClean;
+$("extractApiMenu").onclick=()=>{$("extractMode").value="api";extractClean();};
+$("extractAccountMenu").onclick=()=>{$("extractMode").value="account";extractClean();};
+$("extractRecoveryMenu").onclick=()=>{$("extractMode").value="accountRecovery";extractClean();};
+$("extractCopy").onclick=()=>{const text=$("extractOutput").value;if(!text)return alert("Belum ada hasil ekstrak.");navigator.clipboard.writeText(text);};
+$("extractDownload").onclick=()=>{const text=$("extractOutput").value;if(!text)return alert("Belum ada hasil ekstrak.");const blob=new Blob([text+"\n"],{type:"text/plain;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`hasil-ekstrak-${$("extractMode").value}.txt`;a.click();URL.revokeObjectURL(url);};
 renderKeys();render();
 setInterval(()=>{if(records.some(r=>r.status==="running"||r.status==="queued"))renderActivity();},1000);
 </script></body></html>
