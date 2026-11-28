@@ -50,9 +50,10 @@ async function runTasks(task=$("prompt").value.trim()){
   const chosen=selected.slice();
   records=chosen.map((k,i)=>({id:`${Date.now()}-${i}`,name:k.name,key:k.key,status:"queued",output:"Menunggu giliran...",startedAt:""}));
   isRunning=true;$("run").disabled=true;$("generateKey").disabled=true;$("info").textContent=`Memproses ${count} API…`;$("summary").textContent="Sedang berjalan";$("bar").style.width="0%";render();
-  // Keep a small concurrency window so a large key list does not immediately overwhelm the account.
-  let cursor=0;const workers=Array.from({length:Math.min(4,records.length)},async()=>{while(cursor<records.length){const i=cursor++;await runOne(records[i],task,agent,llm,$("reason").value,maxSteps);}});
-  await Promise.all(workers);isRunning=false;$("run").disabled=false;$("generateKey").disabled=false;$("info").textContent="Semua proses selesai.";render();
+  // Start every selected API immediately. Each job then polls its own status independently;
+  // no job waits for an earlier job to finish before its start request is sent.
+  await Promise.all(records.map(rec=>runOne(rec,task,agent,llm,$("reason").value,maxSteps)));
+  isRunning=false;$("run").disabled=false;$("generateKey").disabled=false;$("info").textContent="Semua proses selesai.";render();
 }
 $("run").onclick=()=>runTasks();
 $("reset").onclick=()=>{if(isRunning)return alert("Task masih berjalan. Tunggu sampai selesai.");records=[];$("summary").textContent="Belum berjalan";$("bar").style.width="0";$("info").textContent="Monitor dibersihkan.";render();};
