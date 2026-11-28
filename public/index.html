@@ -38,6 +38,7 @@ button.alt{background:#0b1a11;border:1px solid #28613c;color:#baffcc;box-shadow:
 .spinner{width:22px;height:22px;border:2px solid #164629;border-top-color:#4dff88;border-right-color:#16e6a2;border-radius:50%;box-shadow:0 0 12px #00ff7560;animation:spin .72s linear infinite;position:relative}
 .spinner:after{content:"";position:absolute;inset:4px;border:1px solid #1c7840;border-bottom-color:#b4ff49;border-radius:50%;animation:spin .95s linear infinite reverse}
 .card:has(.loading-chip){border-color:#28613d;animation:cardPulse 2s ease-in-out infinite}@keyframes cardPulse{50%{box-shadow:inset 0 0 18px #00ff750c,0 0 12px #00ff751a}}
+.monitor-live{display:flex;align-items:center;gap:10px;min-height:56px;margin-top:12px;padding:12px;border:1px solid #28613d;border-radius:11px;background:#040b06;color:#baffcc;font:13px ui-monospace,monospace;box-shadow:inset 0 0 18px #00ff7508}.monitor-live strong{color:#6dff9f}.monitor-live .spinner{width:18px;height:18px}.monitor-live.idle{color:#88aa94}.monitor-live.done{border-color:#28613d;color:#9bffbc}.live-copy{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.results{max-height:270px;overflow-y:auto;padding-right:3px;scrollbar-color:#28613d #061008}.results .card{min-height:0}.results .card pre{max-height:105px;margin:8px 0 0}.txt-status{color:#88aa94;font:11px ui-monospace,monospace}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
 
 </style></head>
@@ -58,9 +59,10 @@ button.alt{background:#0b1a11;border:1px solid #28613c;color:#baffcc;box-shadow:
 <section class="panel" id="monitorPanel">
 <div class="between"><h2 style="margin:0">Monitor</h2><span id="summary" class="tag">Belum berjalan</span></div>
 <div class="progress"><div id="bar" class="bar"></div></div><div id="info" class="hint" style="margin-top:8px">Siap. Tambahkan API key untuk memulai.</div>
+<div id="activity" class="monitor-live idle"><span class="live-copy">Proses pembuatan belum berjalan.</span></div>
 <div id="liveBrowser" class="live-browser hide"><div class="between"><strong>Browser live · <span id="liveAccount"></span></strong></div><iframe id="liveFrame" title="Live view browser dari Hyperbrowser" referrerpolicy="no-referrer" allow="fullscreen; clipboard-read; clipboard-write"></iframe></div>
 <div id="results" class="results" style="margin-top:12px"><div class="hint">Hasil proses akan muncul di sini.</div></div>
-<div class="row" style="margin-top:10px"><button class="alt" id="copyAll">Salin semua</button><button class="alt" id="download">Unduh TXT</button><button class="alt" id="reset">Bersihkan monitor</button></div>
+<div class="between" style="margin-top:10px"><span id="txtStatus" class="txt-status">TXT: belum ada hasil</span><div class="row"><button class="alt" id="copyAll">Salin semua</button><button class="alt" id="downloadSuccess">Unduh TXT sukses</button><button class="alt" id="downloadFailed">Unduh TXT gagal</button><button class="alt" id="reset">Bersihkan monitor</button></div></div>
 </section>
 <section class="panel">
 <label for="prompt" style="margin-top:0">Prompt</label>
@@ -90,7 +92,7 @@ function loadApiKeys(){
     return saved.filter(x=>x&&typeof x.key==="string"&&x.key.trim()).slice(0,50).map((x,i)=>({name:typeof x.name==="string"&&x.name.trim()?x.name:`Akun API ${i+1}`,key:x.key,selected:true}));
   }catch{return [];}
 }
-let apiKeys=loadApiKeys(), records=[], isRunning=false, liveFrameUrl="";
+let apiKeys=loadApiKeys(), records=[], isRunning=false, liveFrameUrl="", activityIndex=0;
 function persistApiKeys(){
   try{
     if(apiKeys.length)localStorage.setItem(API_STORAGE_KEY,JSON.stringify(apiKeys.map(({name,key})=>({name,key}))));
@@ -130,12 +132,29 @@ function updateLiveBrowser(){
   box.classList.remove("hide");$("liveAccount").textContent=active.name;
   if(liveFrameUrl!==url){frame.src=url;liveFrameUrl=url;}
 }
+function renderActivity(){
+  const box=$("activity");
+  if(!records.length){box.className="monitor-live idle";box.innerHTML='<span class="live-copy">Proses pembuatan belum berjalan.</span>';return;}
+  const active=records.filter(r=>r.status==="running"||r.status==="queued");
+  const finished=records.filter(r=>r.status==="success"||r.status==="failed").length;
+  if(active.length){
+    activityIndex%=active.length;
+    const rec=active[activityIndex++], number=records.indexOf(rec)+1;
+    box.className="monitor-live";
+    box.innerHTML=`<i class="spinner"></i><span class="live-copy"><strong>Proses pembuatan berjalan</strong> · API (${number}) · ${rec.status==="queued"?"mengirim…":"memproses…"}</span>`;
+  }else{
+    box.className="monitor-live done";
+    box.innerHTML=`<span class="live-copy"><strong>Semua proses selesai</strong> · ${finished} API selesai.</span>`;
+  }
+}
 function render(){
   updateLiveBrowser();
   const finished=records.filter(r=>["success","failed"].includes(r.status)).length;
   const ok=records.filter(r=>r.status==="success").length, bad=records.filter(r=>r.status==="failed").length;
   $("summary").textContent=`${ok} sukses · ${bad} gagal · ${records.length-finished} proses`;
   $("bar").style.width=(records.length?finished/records.length*100:0)+"%";
+  renderActivity();
+  $("txtStatus").textContent=`TXT live: ${ok} sukses · ${bad} gagal · siap diunduh`;
   $("results").innerHTML=records.map(r=>`<div class="card"><div class="between"><strong>${esc(r.name)}</strong><span class="row"><span class="pill status ${statusClass(r.status)}">${esc(r.status.toUpperCase())}</span>${["queued","running"].includes(r.status)?`<span class="loading-chip"><i class="spinner"></i>${r.status==="queued"?"Menunggu":"Running"}</span>`:""}</span></div><div class="hint">${esc(r.finishedAt||r.startedAt||"")}</div><pre>${esc(cleanText(r.output||r.error||"Tidak ada detail hasil dari server."))}</pre><div class="row"><button class="alt" data-copy="${r.id}">Salin hasil</button></div></div>`).join("")||`<div class="hint">Belum ada hasil.</div>`;
 }
 $("results").onclick=e=>{const b=e.target.closest("[data-copy]");if(!b)return;const r=records.find(x=>x.id===b.dataset.copy);if(r)navigator.clipboard.writeText(`${r.name} — ${r.status.toUpperCase()}\n${cleanText(r.output||r.error||"")}`);};
@@ -167,14 +186,18 @@ async function runTasks(task=$("prompt").value.trim()){
   const chosen=selected.slice();
   records=chosen.map((k,i)=>({id:`${Date.now()}-${i}`,name:k.name,key:k.key,status:"queued",output:"Menunggu giliran...",startedAt:""}));
   isRunning=true;$("run").disabled=true;$("generateKey").disabled=true;$("info").textContent=`Mengirim ke ${count} API…`;$("summary").textContent="Sedang berjalan";$("bar").style.width="0%";render();
-  // Keep a small concurrency window so a large key list does not immediately overwhelm the account.
-  let cursor=0;const workers=Array.from({length:Math.min(4,records.length)},async()=>{while(cursor<records.length){const i=cursor++;await runOne(records[i],task,agent,llm,$("reason").value,maxSteps);}});
-  await Promise.all(workers);isRunning=false;$("run").disabled=false;$("generateKey").disabled=false;$("info").textContent="Semua proses selesai.";render();
+  // Start every selected API immediately; each job is monitored independently.
+  await Promise.all(records.map(rec=>runOne(rec,task,agent,llm,$("reason").value,maxSteps)));
+  isRunning=false;$("run").disabled=false;$("generateKey").disabled=false;$("info").textContent="Semua proses selesai.";render();
 }
 $("run").onclick=()=>runTasks();
 $("reset").onclick=()=>{if(isRunning)return alert("Task masih berjalan. Tunggu sampai selesai.");records=[];$("summary").textContent="Belum berjalan";$("bar").style.width="0";$("info").textContent="Monitor dibersihkan.";render();};
 function allText(){return records.map(r=>`${r.name} | ${r.status.toUpperCase()}${r.jobId?" | Job: "+r.jobId:""}\n${cleanText(r.output||r.error||"")}`).join("\n\n==============================\n\n");}
+function statusText(status){return records.filter(r=>r.status===status).map(r=>`${r.name} | ${status.toUpperCase()}${r.jobId?" | Job: "+r.jobId:""}\n${cleanText(r.output||r.error||"")}`).join("\n\n==============================\n\n");}
+function downloadText(status){const text=statusText(status);if(!text)return alert(`Belum ada hasil ${status===`success`?`sukses`:`gagal`}.`);const blob=new Blob([text],{type:"text/plain;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`dhenlee-ai-${status}.txt`;a.click();URL.revokeObjectURL(url);}
 $("copyAll").onclick=()=>{if(!records.length)return alert("Belum ada hasil.");navigator.clipboard.writeText(allText());};
-$("download").onclick=()=>{if(!records.length)return alert("Belum ada hasil.");const blob=new Blob([allText()],{type:"text/plain;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="dhenlee-ai-results.txt";a.click();URL.revokeObjectURL(url);};
+$("downloadSuccess").onclick=()=>downloadText("success");
+$("downloadFailed").onclick=()=>downloadText("failed");
 renderKeys();render();
+setInterval(()=>{if(records.some(r=>r.status==="running"||r.status==="queued"))renderActivity();},1000);
 </script></body></html>
